@@ -11,9 +11,9 @@ function scrollama() {
   ];
 
   const cb = {
-    stepEnter: () => {},
-    stepExit: () => {},
-    stepProgress: () => {},
+    stepEnter: () => { },
+    stepExit: () => { },
+    stepProgress: () => { },
   };
   const io = {};
 
@@ -40,6 +40,8 @@ function scrollama() {
 
   let direction = 'down';
 
+  let scrollbar = null;
+
   const exclude = [];
 
   /* HELPERS */
@@ -53,7 +55,7 @@ function scrollama() {
 
   function getOffsetTop(el) {
     const { top } = el.getBoundingClientRect();
-    const scrollTop = window.pageYOffset;
+    const scrollTop = scrollbar ? scrollbar.scrollTop : window.pageYOffset;
     const clientTop = document.body.clientTop || 0;
     return top + scrollTop - clientTop;
   }
@@ -67,7 +69,8 @@ function scrollama() {
       body.offsetHeight,
       html.clientHeight,
       html.scrollHeight,
-      html.offsetHeight
+      html.offsetHeight,
+      scrollbar ? scrollbar.size.content.height : 0
     );
   }
 
@@ -76,9 +79,10 @@ function scrollama() {
   }
 
   function updateDirection() {
-    if (window.pageYOffset > previousYOffset) direction = 'down';
-    else if (window.pageYOffset < previousYOffset) direction = 'up';
-    previousYOffset = window.pageYOffset;
+    const yOffset = scrollbar ? scrollbar.scrollTop : window.pageYOffset;
+    if (yOffset > previousYOffset) direction = 'down';
+    else if (yOffset < previousYOffset) direction = 'up';
+    previousYOffset = yOffset;
   }
 
   function disconnectObserver(name) {
@@ -94,6 +98,7 @@ function scrollama() {
     if (isReady) {
       stepOffsetHeight = stepEl.map(el => el.getBoundingClientRect().height);
       stepOffsetTop = stepEl.map(getOffsetTop);
+
       if (isEnabled) updateIO();
     }
 
@@ -212,6 +217,7 @@ function scrollama() {
   // this is good for entering while scrolling down + leaving while scrolling up
   function intersectStepAbove([entry]) {
     updateDirection();
+
     const { isIntersecting, boundingClientRect, target } = entry;
 
     // bottom = bottom edge of element from top of viewport
@@ -338,7 +344,6 @@ function scrollama() {
       const marginBottom = offsetMargin - viewH - stepOffsetHeight[i];
       const rootMargin = `${marginTop}px 0px ${marginBottom}px 0px`;
       const options = { rootMargin };
-      // console.log(options);
       const obs = new IntersectionObserver(intersectViewportAbove, options);
       obs.observe(el);
       return obs;
@@ -351,7 +356,6 @@ function scrollama() {
       const marginBottom = offsetMargin - viewH + stepOffsetHeight[i] + pageH;
       const rootMargin = `${marginTop}px 0px ${marginBottom}px 0px`;
       const options = { rootMargin };
-      // console.log(options);
       const obs = new IntersectionObserver(intersectViewportBelow, options);
       obs.observe(el);
       return obs;
@@ -364,8 +368,10 @@ function scrollama() {
       const marginTop = -offsetMargin + stepOffsetHeight[i];
       const marginBottom = offsetMargin - viewH;
       const rootMargin = `${marginTop}px 0px ${marginBottom}px 0px`;
-      const options = { rootMargin };
-      // console.log(options);
+      const options = {
+        rootMargin,
+        root: scrollbar ? scrollbar.containerEl : null,
+      };
       const obs = new IntersectionObserver(intersectStepAbove, options);
       obs.observe(el);
       return obs;
@@ -378,8 +384,11 @@ function scrollama() {
       const marginTop = -offsetMargin;
       const marginBottom = offsetMargin - viewH + stepOffsetHeight[i];
       const rootMargin = `${marginTop}px 0px ${marginBottom}px 0px`;
-      const options = { rootMargin };
-      // console.log(options);
+      // const options = { rootMargin };
+      const options = {
+        rootMargin,
+        root: scrollbar ? scrollbar.containerEl : null,
+      };
       const obs = new IntersectionObserver(intersectStepBelow, options);
       obs.observe(el);
       return obs;
@@ -393,8 +402,12 @@ function scrollama() {
       const marginBottom = -viewH + offsetMargin;
       const rootMargin = `${marginTop}px 0px ${marginBottom}px 0px`;
       const threshold = createThreshold(stepOffsetHeight[i]);
-      const options = { rootMargin, threshold };
-      // console.log(options);
+      // const options = { rootMargin, threshold };
+      const options = {
+        rootMargin,
+        root: scrollbar ? scrollbar.containerEl : null,
+        threshold,
+      };
       const obs = new IntersectionObserver(intersectStepProgress, options);
       obs.observe(el);
       return obs;
@@ -462,11 +475,14 @@ function scrollama() {
     debug = false,
     order = true,
     once = false,
+    scrollbar: scrollbarSetup = null,
   }) => {
     // create id unique to this scrollama instance
     id = generateInstanceID();
 
     stepEl = selectAll(step);
+
+    scrollbar = scrollbarSetup;
 
     if (!stepEl.length) {
       console.error('scrollama error: no step elements');
@@ -476,17 +492,17 @@ function scrollama() {
     // ensure that no step has a scrollable parent element in the dom tree
     // check current step for scrollable parent
     // assume no scrollable parents to start
-    const scrollableParent = stepEl.reduce(
-      (foundScrollable, s) =>
-        foundScrollable || anyScrollableParent(s.parentNode),
-      false
-    );
-    if (scrollableParent) {
-      console.error(
-        'scrollama error: step elements cannot be children of a scrollable element. Remove any css on the parent element with overflow: scroll; or overflow: auto; on elements with fixed height.',
-        scrollableParent
-      );
-    }
+    // const scrollableParent = stepEl.reduce(
+    //   (foundScrollable, s) =>
+    //     foundScrollable || anyScrollableParent(s.parentNode),
+    //   false
+    // );
+    // if (scrollableParent) {
+    //   console.error(
+    //     'scrollama error: step elements cannot be children of a scrollable element. Remove any css on the parent element with overflow: scroll; or overflow: auto; on elements with fixed height.',
+    //     scrollableParent
+    //   );
+    // }
 
     // options
     isDebug = debug;
